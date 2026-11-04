@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zəfəran Aptek Satış Analitikası</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.54.1/apexcharts.min.js"></script>
+<style>
+:root{--bg:#0b1020;--card:#141a33;--card2:#1b2347;--line:#2a3361;--tx:#e8ebff;--mut:#8f98c9;--vio:#8b5cf6;--cy:#22d3ee;--gr:#34d399;--am:#fbbf24;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:radial-gradient(1200px 600px at 10% -10%,#2a1f5c 0,transparent 60%),var(--bg);color:var(--tx);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+.card{background:linear-gradient(180deg,var(--card),#10152b);border:1px solid var(--line);border-radius:16px}
+.tab{padding:.5rem .95rem;border-radius:10px;color:var(--mut);font-weight:600;font-size:.88rem;white-space:nowrap;transition:.2s}
+.tab:hover{color:var(--tx)}
+.tab.on{background:linear-gradient(135deg,var(--vio),#6366f1);color:#fff;box-shadow:0 6px 20px #6d4df255}
+input,select{background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:.42rem .6rem;font-size:.85rem;color-scheme:dark;max-width:100%}
+.bar{height:8px;border-radius:99px;background:#252d58;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;transition:width .6s}
+.sx{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th{color:var(--mut);font-weight:600;text-align:right;padding:.65rem .8rem;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td{padding:.6rem .8rem;text-align:right;border-bottom:1px solid #20285066;white-space:nowrap}
+tbody tr:hover{background:#1b234766}
+tfoot td{font-weight:700;background:var(--card2);border-bottom:0}
+.pill{display:inline-block;padding:.1rem .55rem;border-radius:99px;font-weight:700;font-size:.78rem}
+.rk{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:.8rem;background:var(--card2);flex:none}
+.rk.t{background:linear-gradient(135deg,var(--vio),var(--cy));color:#fff}
+.fade{animation:f .35s ease}@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ck{cursor:pointer}
+</style>
+</head>
+<body>
+<div class="max-w-7xl mx-auto px-4 py-5">
+  <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-xl grid place-items-center text-xl" style="background:linear-gradient(135deg,var(--vio),var(--cy))">✚</div>
+      <div><h1 class="text-xl font-extrabold leading-tight">Zəfəran Aptek Satış Analitikası</h1>
+      <p class="text-xs" style="color:var(--mut)"><span id="period"></span> · <span id="gen">yüklənir…</span></p></div>
+    </div>
+    <button id="reload" class="tab" style="background:var(--card2)">⟳ Yenilə</button>
+  </header>
+
+  <section class="card p-3 mb-4 flex flex-wrap items-center gap-2">
+    <input type="date" id="d1"><span style="color:var(--mut)">–</span><input type="date" id="d2">
+    <div class="flex gap-1 flex-wrap" id="quick">
+      <button class="tab" data-q="1" style="background:var(--card2)">Son gün</button>
+      <button class="tab" data-q="7" style="background:var(--card2)">7 gün</button>
+      <button class="tab" data-q="30" style="background:var(--card2)">30 gün</button>
+      <button class="tab" data-q="0" style="background:var(--card2)">Hamısı</button>
+    </div>
+    <select id="fa"></select><select id="fr"></select><select id="fp"></select>
+  </section>
+
+  <nav class="flex gap-2 mb-4 overflow-x-auto pb-1" id="tabs">
+    <button class="tab on" data-t="dash">Ümumi Dashboard</button>
+    <button class="tab" data-t="day">Günün hesabatı</button>
+    <button class="tab" data-t="apt">Ümumi Apteklər</button>
+    <button class="tab" data-t="emp">Ümumi İşçilər</button>
+    <button class="tab" data-t="mar">Marafon məhsulları</button>
+    <button class="tab" data-t="drug">Dərmanlar</button>
+    <button class="tab" data-t="cat">Kateqoriyalar</button>
+    <button class="tab" data-t="kv">Kvota</button>
+    <button class="tab" data-t="grp">Məhsul qrupları</button>
+    <button class="tab" data-t="bon">Bonus kartı</button>
+  </nav>
+
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="kpis"></section>
+
+  <main id="p-dash" class="fade">
+    <div id="lead" class="grid md:grid-cols-3 gap-3 mb-4"></div>
+    <div class="card p-4 mb-4"><h2 class="font-bold">🏆 Ən aktiv işçilər (ümumi xal)</h2><p class="text-xs mb-3" style="color:var(--mut)" id="trf"></p>
+      <div class="grid lg:grid-cols-5 gap-4"><div class="lg:col-span-2" id="trk"></div><div class="lg:col-span-3"><div id="c-tr"></div></div></div>
+      <h3 class="font-bold text-sm mt-4 mb-2">Aptek liderləri (aptekə klik edin)</h3><div id="apl" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"></div></div>
+    <div class="card p-4 mb-4"><h2 class="font-bold mb-1">Satış dinamikası</h2><div id="c-trend"></div></div>
+    <div class="grid lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-4"><h2 class="font-bold">Top 10 Aptek</h2><p class="text-xs mb-2" style="color:var(--mut)">Detal üçün çubuğa klik edin</p><div id="c-apt"></div></div>
+      <div class="card p-4"><h2 class="font-bold mb-2">Top 10 İşçi</h2><div id="c-emp"></div></div>
+    </div>
+    <div class="grid lg:grid-cols-3 gap-4">
+      <div class="card p-4"><h2 class="font-bold mb-1">Məhsul payı</h2><div id="c-prod"></div></div>
+      <div class="card p-4"><h2 class="font-bold mb-1">Rayonlar üzrə satış</h2><div id="c-ray"></div></div>
+      <div class="card p-4"><h2 class="font-bold mb-1">Həftənin günləri</h2><div id="c-wd"></div></div>
+    </div>
+  </main>
+
+  <main id="p-apt" class="hidden">
+    <div class="card p-4">
+      <h2 class="font-bold mb-3">Ümumi Apteklərin Satışı <span class="text-xs font-normal" style="color:var(--mut)">· sətrə klik edin</span></h2>
+      <div class="sx"><table><thead id="ath"></thead><tbody id="atb"></tbody><tfoot id="atf"></tfoot></table></div>
+    </div>
+  </main>
+
+  <main id="p-emp" class="hidden">
+    <div class="grid lg:grid-cols-5 gap-4">
+      <div class="card p-4 lg:col-span-3">
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3"><h2 class="font-bold">Ümumi İşçilər</h2><input type="search" id="q" placeholder="İşçi axtar…"></div>
+        <div class="sx" style="max-height:640px;overflow-y:auto"><table><thead><tr><th style="cursor:default">#&nbsp;İşçi</th><th style="cursor:default">Aptek</th><th style="cursor:default">Satış</th><th style="cursor:default">Ədəd</th><th style="cursor:default;min-width:100px">Pay</th></tr></thead><tbody id="etb"></tbody></table></div>
+      </div>
+      <div class="card p-4 lg:col-span-2"><h2 class="font-bold mb-1">Top 15 işçi</h2><div id="c-emp2"></div></div>
+    </div>
+  </main>
+
+  <main id="p-mar" class="hidden">
+    <div id="pc" class="grid md:grid-cols-3 gap-3 mb-4"></div>
+    <div class="grid lg:grid-cols-2 gap-4">
+      <div class="card p-4"><h2 class="font-bold mb-1">Aptek × məhsul (Top 10)</h2><div id="c-ma"></div></div>
+      <div class="card p-4"><h2 class="font-bold mb-1">İşçi × məhsul (Top 10)</h2><div id="c-me"></div></div>
+    </div>
+  </main>
+
+  <main id="p-cat" class="hidden">
+    <div class="card p-3 mb-4 flex flex-wrap items-center gap-2"><span class="text-sm font-bold">Hansı kateqoriya üzrə:</span><select id="cdim"></select><span class="text-xs" style="color:var(--mut)">Faylın əlavə sütunları (məs. Vəzifə) burada avtomatik görünür</span></div>
+    <div class="grid lg:grid-cols-5 gap-4 mb-4">
+      <div class="card p-4 lg:col-span-3"><h2 class="font-bold mb-1" id="ct">Satış</h2><div id="c-cat1"></div></div>
+      <div class="card p-4 lg:col-span-2"><h2 class="font-bold mb-1">Pay</h2><div id="c-cat2"></div></div>
+    </div>
+    <div class="card p-4"><div class="sx" style="max-height:520px;overflow-y:auto"><table><thead><tr><th style="cursor:default" id="cth"></th><th style="cursor:default">Satış</th><th style="cursor:default">Ədəd</th><th style="cursor:default">Satış sətri</th><th style="cursor:default">Pay</th><th style="cursor:default;min-width:110px">Gedişat</th></tr></thead><tbody id="ctb"></tbody></table></div></div>
+  </main>
+
+  <main id="p-day" class="hidden">
+    <div class="card p-3 mb-4 flex flex-wrap items-center gap-2"><span class="text-sm font-bold">Gün:</span>
+      <button class="tab" id="gdp" style="background:var(--card2)">◀</button><input type="date" id="gd"><button class="tab" id="gdn" style="background:var(--card2)">▶</button>
+      <button class="tab" id="gdl" style="background:var(--card2)">Son gün</button><span class="text-xs" style="color:var(--mut)">Aptek və rayon filtrləri burada da işləyir</span></div>
+    <div id="dk" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+    <div id="dw" class="grid md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4"></div>
+    <div class="card p-4 mb-4"><h2 class="font-bold mb-1">Aptek üzrə günün nəticələri</h2><p class="text-xs mb-2" style="color:var(--mut)">Aptekə klik edin: bütün göstəriciləri açılır</p><div class="sx"><table><thead id="dath"></thead><tbody id="dat"></tbody></table></div></div>
+    <div class="grid lg:grid-cols-2 gap-4">
+      <div class="card p-4"><h2 class="font-bold mb-1">Bonus kartı açmayan işçilər</h2><p class="text-xs mb-2" style="color:var(--mut)">Həmin gün satışı olub, bonus kartı yoxdur</p><div id="dnb"></div></div>
+      <div class="card p-4"><div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h2 class="font-bold">Günün ən çox satılan 10 dərmanı</h2><select id="gda"></select></div><div id="c-dd"></div></div>
+    </div>
+  </main>
+
+  <main id="p-drug" class="hidden">
+    <div id="pk" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+    <div class="grid lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-4"><h2 class="font-bold mb-1">Ən çox satılan 15 dərman</h2><div id="c-pt"></div></div>
+      <div class="card p-4"><h2 class="font-bold mb-1">Heç satışı olmayan dərmanlar</h2><p class="text-xs mb-2" style="color:var(--mut)">Seçilmiş dövr və filtrdə satılmayanlar (siyahı faylda və "Məhsullar" vərəqində olan bütün dərmanlardır)</p><div id="pz" class="flex flex-wrap gap-2"></div></div>
+    </div>
+    <div class="card p-4 mb-4"><h2 class="font-bold mb-1">Aptek × dərman xəritəsi</h2><p class="text-xs mb-2" style="color:var(--mut)">Rəngin tündlüyü satışın həcmini göstərir. Aptekə klik edin.</p><div class="sx"><table id="pmx"></table></div></div>
+    <div class="card p-4"><h2 class="font-bold mb-1">Bütün dərmanlar</h2><div class="sx" style="max-height:520px;overflow-y:auto"><table><thead><tr><th style="cursor:default">Məhsul</th><th style="cursor:default">Satış</th><th style="cursor:default">Ədəd</th><th style="cursor:default">Neçə aptekdə</th><th style="cursor:default">Pay</th></tr></thead><tbody id="ptb"></tbody></table></div></div>
+  </main>
+
+  <main id="p-kv" class="hidden">
+    <div id="kvk" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+    <div class="grid lg:grid-cols-5 gap-4 mb-4">
+      <div class="card p-4 lg:col-span-3"><h2 class="font-bold mb-1">Aptek kvotası</h2><p class="text-xs mb-2" style="color:var(--mut)">Kvota seçilən tarix aralığına mütənasib hesablanır (bir gün seçsəniz gündəlik kvotadır). Detal üçün aptekə klik edin.</p><div class="sx"><table><thead><tr><th style="cursor:default">Aptek</th><th style="cursor:default">Kvota</th><th style="cursor:default">Satış</th><th style="cursor:default">İcra %</th><th style="cursor:default">Qalan</th><th style="cursor:default">Gedişat</th></tr></thead><tbody id="kva"></tbody></table></div></div>
+      <div class="card p-4 lg:col-span-2"><h2 class="font-bold mb-1">Kvota icrası %</h2><div id="c-kv"></div></div>
+    </div>
+    <div class="card p-4"><h2 class="font-bold mb-1">İşçi kvotası</h2><div class="sx"><table><thead><tr><th style="cursor:default">İşçi</th><th style="cursor:default">Aptek</th><th style="cursor:default">Kvota</th><th style="cursor:default">Satış</th><th style="cursor:default">İcra %</th><th style="cursor:default">Qalan</th><th style="cursor:default">Aptek dövriyyəsində pay</th></tr></thead><tbody id="kve"></tbody></table></div></div>
+  </main>
+
+  <main id="p-grp" class="hidden">
+    <div id="gnone" class="card p-4 text-sm" style="color:var(--mut)">Qruplar təyin edilməyib. Excelə "Məhsullar" vərəqi əlavə edin (sütunlar: Məhsul, Qrup).</div>
+    <div id="gbody">
+      <div id="gch" class="flex gap-2 flex-wrap mb-4"></div>
+      <div id="gk" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+      <div class="grid lg:grid-cols-2 gap-4 mb-4">
+        <div class="card p-4"><h2 class="font-bold mb-1">Aptek üzrə (Top 10)</h2><div id="c-ga"></div></div>
+        <div class="card p-4"><h2 class="font-bold mb-1">İşçi üzrə (Top 10)</h2><div id="c-ge"></div></div>
+      </div>
+      <div class="card p-4"><h2 class="font-bold mb-1">Qrupun məhsulları</h2><p class="text-xs mb-2" style="color:var(--mut)">Qalıq: seçilən dövrdə satılan ədəd / qalıq ədədi</p><div class="sx"><table><thead><tr><th style="cursor:default">Məhsul</th><th style="cursor:default">Satış</th><th style="cursor:default">Ədəd</th><th style="cursor:default">Qalıq (stok)</th><th style="cursor:default">Satılıb %</th><th style="cursor:default">Qalan ədəd</th></tr></thead><tbody id="gtb"></tbody></table></div></div>
+    </div>
+  </main>
+
+  <main id="p-bon" class="hidden">
+    <div id="bnone" class="card p-4 text-sm" style="color:var(--mut)">Bonus məlumatı yoxdur. Excelə "Bonus" vərəqi əlavə edin (sütunlar: Tarix, Aptek, İşçi, Kart sayı).</div>
+    <div id="bbody">
+      <div id="bk" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4"></div>
+      <div class="card p-4 mb-4"><h2 class="font-bold mb-1">Gündəlik açılan kartlar</h2><div id="c-bt"></div></div>
+      <div class="grid lg:grid-cols-2 gap-4 mb-4">
+        <div class="card p-4"><h2 class="font-bold mb-1">İşçi reytinqi</h2><div id="c-be"></div></div>
+        <div class="card p-4"><h2 class="font-bold mb-1">Aptek reytinqi</h2><div id="c-ba"></div></div>
+      </div>
+      <div class="grid lg:grid-cols-5 gap-4">
+        <div class="card p-4 lg:col-span-2"><h2 class="font-bold mb-1">Aylar üzrə</h2><div class="sx"><table><thead><tr><th style="cursor:default">Ay</th><th style="cursor:default">Kart</th><th style="cursor:default">Gün sayı</th><th style="cursor:default">Günlük orta</th></tr></thead><tbody id="bmt"></tbody></table></div></div>
+        <div class="card p-4 lg:col-span-3"><h2 class="font-bold mb-1">Bütün işçilər</h2><div class="sx" style="max-height:480px;overflow-y:auto"><table><thead><tr><th style="cursor:default">İşçi</th><th style="cursor:default">Aptek</th><th style="cursor:default">Kart</th><th style="cursor:default">Pay</th></tr></thead><tbody id="bet"></tbody></table></div></div>
+      </div>
+    </div>
+  </main>
+
+  <p class="text-center text-xs mt-8" style="color:var(--mut)">Məlumat hər saat Excel faylından avtomatik yenilənir. Səhifə açıq qalsa, yeniliyi özü yoxlayır.</p>
+</div>
+
+<div id="pwbox" class="hidden fixed inset-0 grid place-items-center px-4" style="z-index:70;background:#050814f2;backdrop-filter:blur(6px)">
+  <div class="card p-6 w-full max-w-sm">
+    <div class="text-xl font-extrabold mb-1">Zəfəran Aptek Analitikası</div>
+    <p class="text-xs mb-4" style="color:var(--mut)">Davam etmək üçün parolu daxil edin</p>
+    <input type="password" id="pwin" class="w-full mb-2" placeholder="Parol" autocomplete="current-password">
+    <label class="text-xs flex items-center gap-2 mb-2" style="color:var(--mut)"><input type="checkbox" id="pwsave" checked style="width:auto"> Bu cihazda yadda saxla</label>
+    <div id="pwerr" class="text-xs mb-2" style="color:var(--am)"></div>
+    <button id="pwgo" class="tab on w-full">Daxil ol</button>
+  </div>
+</div>
+
+<div id="modal" class="hidden fixed inset-0 z-50 overflow-y-auto px-3" style="background:#050814d9;backdrop-filter:blur(4px);padding-top:env(safe-area-inset-top,0px)" onclick="if(event.target===this)closeM()">
+  <div class="card fade max-w-4xl mx-auto my-6 p-5">
+    <div class="flex justify-between items-start gap-3 mb-4">
+      <div><h2 id="m-t" class="text-xl font-extrabold"></h2><p class="text-xs" style="color:var(--mut)" id="m-s"></p></div>
+      <button class="tab" style="background:var(--card2)" onclick="closeM()">✕ Bağla</button>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="m-k"></div>
+    <div class="grid md:grid-cols-5 gap-4 mb-4">
+      <div class="md:col-span-2 rounded-xl p-3" style="background:var(--card2)"><div id="m-g0"><h3 class="font-bold text-sm">Hədəfin tamamlanması</h3><div id="c-d0"></div><div class="text-center text-sm" style="color:var(--mut)" id="m-gt"></div></div><div id="m-g1"><h3 class="font-bold text-sm">Məhsul payı</h3><div id="c-d1"></div></div></div>
+      <div class="md:col-span-3"><h3 class="font-bold text-sm mb-1">Gündəlik satış</h3><div id="c-d2"></div></div>
+    </div>
+    <h3 class="font-bold text-sm mb-1">İşçilər üzrə satış</h3><div id="c-d3"></div>
+    <div id="m-q" class="mt-4"></div>
+    <div class="grid md:grid-cols-2 gap-4 mt-4"><div><h3 class="font-bold text-sm mb-1">Ən çox satılan 10 dərman</h3><div id="c-d4"></div></div><div id="m-z"></div></div>
+  </div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const f1=n=>n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}),f0=n=>Math.round(n).toLocaleString('en-US');
+const col=p=>p>=100?'#34d399':p>=85?'#8b5cf6':'#fbbf24';
+const pal=['#8b5cf6','#7c6cf8','#6d7bf9','#5b8cf6','#46a0f0','#2fb6ea','#22d3ee','#2dd4bf','#34d399','#6ee7b7','#a78bfa','#38bdf8','#4ade80','#fcd34d','#c4b5fd'];
+const KPI=(k=>`<div class="card p-4"><span class="text-xs" style="color:var(--mut)">${k[0]}</span><div class="font-extrabold mt-2 ${k[3]||'text-xl'}" style="color:${k[2]}">${k[1]}</div></div>`);
+const MON=['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+const WD=['B.e.','Ç.a.','Çər.','C.a.','Cümə','Şən.','Bazar'];
+const dn=s=>Date.parse(s)/864e5,fd=s=>{const d=new Date(s);return isNaN(d)?'':d.getUTCDate()+' '+MON[d.getUTCMonth()]+' '+d.getUTCFullYear()};
+let D=null,F={},tab='dash',mod=-1,sortK='a',sortD=-1,charts={},gen='',gsel=0,dsel='',lastMod='';
+
+function rowsIn(a,b,apt){
+  const ap=apt===undefined?F.apt:apt;
+  return D.rows.filter(r=>{const n=D.dn[r[0]];return n>=a&&n<=b&&(ap<0||r[1]===ap)&&(F.ray===''||D.apts[r[1]].r===F.ray)&&(F.prod<0||r[3]===F.prod)});
+}
+const sum=(R,k)=>R.reduce((s,r)=>s+r[k],0);
+function grp(R,k){const m=new Map();for(const r of R){let o=m.get(r[k]);if(!o){o={k:r[k],a:0,q:0};m.set(r[k],o)}o.a+=r[5];o.q+=r[4]}return [...m.values()].sort((x,y)=>y.a-x.a)}
+function tgtFactor(a,b){let s=0;for(let d=a;d<=b;d++){const t=new Date(d*864e5);s+=1/new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).getUTCDate()}return s}
+
+function mk(id,o){if(charts[id]){charts[id].updateOptions(o,true,true)}else{charts[id]=new ApexCharts($('#'+id),o);charts[id].render()}}
+const base=(h,t)=>({chart:{type:t,height:h,toolbar:{show:false},background:'transparent',fontFamily:'inherit',animations:{speed:450}},theme:{mode:'dark'},grid:{borderColor:'#2a3361',strokeDashArray:3},tooltip:{theme:'dark'},legend:{labels:{colors:'#8f98c9'}}});
+function bar(cats,vals,colors,h,ev,suffix){
+  const o=base(h,'bar');o.series=[{name:'Satış',data:vals}];
+  o.plotOptions={bar:{horizontal:true,borderRadius:6,barHeight:'64%',distributed:true}};o.colors=colors;o.legend={show:false};
+  o.dataLabels={enabled:true,formatter:v=>f0(v),style:{fontSize:'11px',colors:['#fff']},dropShadow:{enabled:false}};
+  o.xaxis={categories:cats,labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)},axisBorder:{show:false}};
+  o.yaxis={labels:{style:{colors:'#e8ebff',fontSize:'12px'},maxWidth:150}};
+  o.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};if(ev)o.chart.events={dataPointSelection:ev};return o}
+function stack(cats,series,h){
+  const o=base(h,'bar');o.chart.stacked=true;o.series=series;o.colors=pal;
+  o.plotOptions={bar:{horizontal:true,borderRadius:3,barHeight:'64%'}};o.dataLabels={enabled:false};
+  o.xaxis={categories:cats,labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)}};o.yaxis={labels:{style:{colors:'#e8ebff'},maxWidth:150}};
+  o.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};return o}
+function donut(labels,vals,h,center){
+  const o=base(h,'donut');o.series=vals;o.labels=labels;o.colors=pal;o.stroke={width:0};o.dataLabels={enabled:false};
+  o.legend={position:'bottom',labels:{colors:'#8f98c9'}};
+  o.plotOptions={pie:{donut:{size:'66%',labels:{show:true,total:{show:true,label:center,color:'#8f98c9',formatter:w=>f0(w.globals.seriesTotals.reduce((a,b)=>a+b,0))},value:{color:'#e8ebff',formatter:v=>f0(+v)}}}}};
+  o.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};return o}
+function line(cats,vals,h,name){
+  const o=base(h,'area');o.series=[{name:name||'Satış',data:vals}];o.colors=['#8b5cf6'];o.stroke={curve:'smooth',width:3};
+  o.fill={type:'gradient',gradient:{shadeIntensity:1,opacityFrom:.45,opacityTo:.02}};o.dataLabels={enabled:false};
+  o.xaxis={categories:cats,tickAmount:8,labels:{rotate:0,style:{colors:'#8f98c9'},formatter:v=>v?String(v).slice(5):''},axisBorder:{show:false}};
+  o.yaxis={labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)}};o.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};return o}
+
+let DIMS=[];
+const WDF=['Bazar ertəsi','Çərşənbə axşamı','Çərşənbə','Cümə axşamı','Cümə','Şənbə','Bazar'];
+function buildDims(){
+  const bi=['ay','həftənin günü','aptek','işçi','məhsul'];
+  DIMS=[{n:'Aptek',f:r=>D.apts[r[1]].n},{n:'İşçi',f:r=>D.emps[r[2]].n},{n:'Məhsul',f:r=>D.prods[r[3]]}];
+  if(D.mar)DIMS.push({n:'Marafon / digər məhsullar',f:r=>D.mar[r[3]]?'Marafon':'Digər'});
+  if(D.groups.length)DIMS.push({n:'Məhsul qrupu',m:r=>{const o=[];D.groups.forEach((g,i)=>{if((r[6]>>i)&1)o.push(g)});return o.length?o:['Digər']}});
+  DIMS.push({n:'Ay',f:r=>D.dates[r[0]].slice(0,7),d:k=>MON[+k.slice(5,7)-1]+' '+k.slice(0,4),s:1},
+            {n:'Həftənin günü',f:r=>(new Date(D.dn[r[0]]*864e5).getUTCDay()+6)%7,d:k=>WDF[k],s:1});
+  (D.cats||[]).forEach((c,i)=>{if(!bi.includes(c.n.toLowerCase()))DIMS.push({n:c.n,f:r=>c.v[r[7+i]]})});
+  const sel=$('#cdim'),o=parseInt(sel.value,10);
+  sel.innerHTML=DIMS.map((d,i)=>`<option value="${i}">${d.n}</option>`).join('');
+  sel.value=String(o>=0&&o<DIMS.length?o:0);
+  $('.tab[data-t=mar]').textContent=D.mar?'Marafon məhsulları':'Məhsullar';
+  const s2=$('#gda'),o2=parseInt(s2.value,10);s2.innerHTML='<option value="-1">Bütün apteklər</option>'+D.apts.map((x,i)=>`<option value="${i}">${x.n}</option>`).join('');s2.value=String(o2>=0&&o2<D.apts.length?o2:-1);
+  const vis=(x,ok)=>{$('.tab[data-t='+x+']').style.display=ok?'':'none'};
+  vis('kv',Object.keys(D.quota.a).length+Object.keys(D.quota.e).length>0);vis('grp',D.groups.length>0);vis('bon',D.bonus.length>0);
+}
+function quotaData(R,a,b){
+  const tf=tgtFactor(a,b),QB=D.qg>=0?R.filter(r=>(r[6]>>D.qg)&1):R,sa=new Map(),se=new Map();
+  for(const r of QB){sa.set(r[1],(sa.get(r[1])||0)+r[5]);se.set(r[2],(se.get(r[2])||0)+r[5])}
+  const ok=i=>(F.apt<0||i===F.apt)&&(F.ray===''||D.apts[i].r===F.ray),eq=D.quota.e,aq=D.quota.a;
+  const er=D.emps.map((e,j)=>({k:j,a:e.a,q:eq[j]==null?null:eq[j]*tf,s:se.get(j)||0})).filter(x=>x.q!=null&&ok(x.a));
+  const ar=D.apts.map((x,i)=>{let q=aq[i];if(q==null){const t=D.emps.reduce((s,e,j)=>s+(e.a===i&&eq[j]!=null?eq[j]:0),0);q=t||null}return{k:i,q:q==null?null:q*tf,s:sa.get(i)||0}}).filter(x=>x.q!=null&&ok(x.k));
+  return{ar,er};
+}
+function scoreEmps(R,a,b){
+  const se=new Map(),be=new Map();
+  for(const r of R)se.set(r[2],(se.get(r[2])||0)+r[5]);
+  for(const x of D.bonus){const n=D.dn[x[0]];if(n>=a&&n<=b&&(F.apt<0||x[1]===F.apt)&&(F.ray===''||D.apts[x[1]].r===F.ray))be.set(x[2],(be.get(x[2])||0)+x[3])}
+  const qm=new Map(quotaData(R,a,b).er.map(x=>[x.k,x.q?x.s/x.q:0])),hasB=D.bonus.length>0,hasQ=qm.size>0;
+  const mS=Math.max(1,...se.values()),mB=Math.max(1,...be.values()),W={s:50,b:hasB?25:0,q:hasQ?25:0},tw=W.s+W.b+W.q;
+  const ids=new Set([...se.keys(),...be.keys()]);
+  const out=[...ids].map(k=>{const s=se.get(k)||0,bc=be.get(k)||0,qp=qm.get(k);return{k,s,bc,qp,sc:(W.s*s/mS+W.b*bc/mB+W.q*Math.min(qp||0,1))/tw*100}}).sort((x,y)=>y.sc-x.sc);
+  out.W={s:Math.round(W.s/tw*100),b:Math.round(W.b/tw*100),q:Math.round(W.q/tw*100)};return out;
+}
+function ctx(){
+  const a=dn(F.from),b=dn(F.to),days=b-a+1,R=rowsIn(a,b);
+  return{a,b,days,R,pr:rowsIn(a-days,a-1)}
+}
+function delta(c,p){if(!p)return'';const d=(c-p)/p*100;return `<span class="text-xs font-bold" style="color:${d>=0?'var(--gr)':'var(--am)'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)}%</span>`}
+
+function render(){
+  if(!D)return;
+  const{a,b,days,R,pr}=ctx();
+  $('#period').textContent=fd(F.from)+' – '+fd(F.to)+' · '+days+' gün';
+  const S=sum(R,5),Q=sum(R,4),Sp=sum(pr,5),Qp=sum(pr,4),act=new Set(R.map(r=>r[2])).size;
+  $('#kpis').innerHTML=[['Ümumi satış',f1(S)+' ₼','var(--vio)',delta(S,Sp)],['Satılan ədəd',f0(Q),'var(--cy)',delta(Q,Qp)],['Günlük orta',f1(S/days)+' ₼','var(--am)',''],['Aktiv işçi',act+' / '+D.emps.length,'var(--gr)','']]
+   .map(k=>`<div class="card p-4"><div class="flex justify-between items-center"><span class="text-xs" style="color:var(--mut)">${k[0]}</span>${k[3]}</div><div class="text-xl lg:text-2xl font-extrabold mt-2" style="color:${k[2]}">${k[1]}</div></div>`).join('');
+  const ga=grp(R,1),ge=grp(R,2),gp=grp(R,3);
+  const tf=tgtFactor(a,b),hasT=Object.keys(D.targets).length>0&&F.prod<0;
+  const tg=i=>hasT&&D.targets[D.apts[i].n]?D.targets[D.apts[i].n]*tf:0;
+
+  if(tab==='dash'){
+    const lastN=Math.max(0,...R.map(r=>D.dn[r[0]])),LR=R.filter(r=>D.dn[r[0]]===lastN);
+    const la=grp(LR,1)[0],le=grp(LR,2)[0],lp=grp(LR,3)[0];
+    const w=(ic,t,n,s,v,c)=>`<div class="card p-4 flex gap-3 items-center"><div class="w-12 h-12 rounded-2xl grid place-items-center text-2xl flex-none" style="background:${c}22">${ic}</div><div class="min-w-0"><div class="text-xs" style="color:var(--mut)">${t}</div><div class="font-extrabold truncate">${n}</div><div class="text-xs" style="color:var(--mut)">${s}</div></div><div class="ml-auto text-right font-extrabold" style="color:${c}">${v}</div></div>`;
+    const ds=lastN?fd(D.dates.find((_,i)=>D.dn[i]===lastN)):'';
+    $('#lead').innerHTML=la?w('🏆','Günün aptek lideri · '+ds,D.apts[la.k].n,D.apts[la.k].r,f1(la.a)+' ₼','#fbbf24')+w('⭐','Günün ən çox satan işçisi',D.emps[le.k].n,D.apts[D.emps[le.k].a].n,f1(le.a)+' ₼','#8b5cf6')+w('💊','Günün məhsulu',D.prods[lp.k],f0(lp.q)+' ədəd',f1(lp.a)+' ₼','#34d399'):'';
+    const byD=new Map();R.forEach(r=>byD.set(r[0],(byD.get(r[0])||0)+r[5]));const ds2=[...byD.keys()].sort((x,y)=>x-y);
+    mk('c-trend',line(ds2.map(i=>D.dates[i]),ds2.map(i=>+byD.get(i).toFixed(1)),260));
+    const ta=ga.slice(0,10),te=ge.slice(0,10);
+    mk('c-apt',bar(ta.map(x=>D.apts[x.k].n),ta.map(x=>+x.a.toFixed(1)),pal,380,(e,c,g)=>openM(ta[g.dataPointIndex].k)));
+    mk('c-emp',bar(te.map(x=>D.emps[x.k].n),te.map(x=>+x.a.toFixed(1)),pal.slice().reverse(),380));
+    mk('c-prod',donut(gp.map(x=>D.prods[x.k]),gp.map(x=>+x.a.toFixed(1)),320,'Cəmi ₼'));
+    const ry=new Map();R.forEach(r=>{const n=D.apts[r[1]].r;ry.set(n,(ry.get(n)||0)+r[5])});const ra=[...ry].sort((x,y)=>y[1]-x[1]);
+    mk('c-ray',bar(ra.map(x=>x[0]),ra.map(x=>+x[1].toFixed(1)),pal,320));
+    const wd=Array(7).fill(0);R.forEach(r=>{wd[(new Date(D.dn[r[0]]*864e5).getUTCDay()+6)%7]+=r[5]});
+    const wo=base(320,'bar');wo.series=[{name:'Satış',data:wd.map(v=>+v.toFixed(1))}];wo.colors=['#6366f1'];wo.plotOptions={bar:{borderRadius:6,columnWidth:'55%',distributed:true}};wo.legend={show:false};wo.dataLabels={enabled:false};
+    wo.xaxis={categories:WD,labels:{style:{colors:'#8f98c9'}}};wo.yaxis={labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)}};wo.colors=pal;wo.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};mk('c-wd',wo);
+  }
+  if(tab==='apt'){
+    const rows=ga.map(x=>{const t=tg(x.k);return{k:x.k,n:D.apts[x.k].n,r:D.apts[x.k].r,a:x.a,q:x.q,sh:S?x.a/S*100:0,t,p:t?x.a/t*100:0,l:t?Math.max(t-x.a,0):0}});
+    rows.sort((x,y)=>sortK==='n'?sortD*x.n.localeCompare(y.n,'az',{numeric:true}):sortD*(x[sortK]-y[sortK]));
+    const th=(k,l)=>`<th data-s="${k}">${l}${sortK===k?(sortD<0?' ▾':' ▴'):''}</th>`;
+    $('#ath').innerHTML='<tr>'+th('n','Aptek')+th('r','Rayon').replace('data-s="r"','style="cursor:default"')+(hasT?th('t','Hədəf')+th('l','Qalan'):'')+th('a','Satış')+th('q','Ədəd')+th('sh','Pay %')+(hasT?th('p','İcra %'):'')+'<th style="cursor:default;min-width:120px">Gedişat</th></tr>';
+    $('#atb').innerHTML=rows.map(x=>`<tr class="ck" onclick="openM(${x.k})"><td><b>${x.n}</b></td><td style="text-align:right">${x.r}</td>${hasT?`<td>${x.t?f1(x.t):'–'}</td><td>${x.t?f1(x.l):'–'}</td>`:''}<td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${x.sh.toFixed(1)}%</td>${hasT?`<td>${x.t?`<span class="pill" style="background:${col(x.p)}22;color:${col(x.p)}">${x.p.toFixed(2)}%</span>`:'–'}</td>`:''}<td><div class="bar"><i style="width:${hasT&&x.t?Math.min(x.p,100):x.sh*2.5}%;background:${hasT&&x.t?col(x.p):'var(--vio)'}"></i></div></td></tr>`).join('');
+    const T=rows.reduce((s,x)=>s+x.t,0);
+    $('#atf').innerHTML=`<tr><td>Total</td><td></td>${hasT?`<td>${f1(T)}</td><td>${f1(Math.max(T-S,0))}</td>`:''}<td>${f1(S)}</td><td>${f0(Q)}</td><td>100%</td>${hasT?`<td>${T?(S/T*100).toFixed(2)+'%':'–'}</td>`:''}<td></td></tr>`;
+    $$('#ath th[data-s]').forEach(h=>h.onclick=()=>{const k=h.dataset.s;sortD=sortK===k?-sortD:-1;sortK=k;render()});
+  }
+  if(tab==='emp'){
+    const q=$('#q').value.trim().toLowerCase(),L=ge.filter(x=>D.emps[x.k].n.toLowerCase().includes(q)||D.apts[D.emps[x.k].a].n.toLowerCase().includes(q));
+    const mx=L.length?L[0].a:1;
+    $('#etb').innerHTML=L.map((x,i)=>`<tr class="ck" onclick="openM(${D.emps[x.k].a})"><td><div class="flex items-center gap-2"><span class="rk ${i<3?'t':''}">${i+1}</span><b>${D.emps[x.k].n}</b></div></td><td>${D.apts[D.emps[x.k].a].n}</td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td><div class="bar"><i style="width:${x.a/mx*100}%;background:var(--vio)"></i></div></td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--mut)">Tapılmadı</td></tr>';
+    const t=ge.slice(0,15);mk('c-emp2',bar(t.map(x=>D.emps[x.k].n),t.map(x=>+x.a.toFixed(1)),pal,560));
+  }
+  if(tab==='mar'){
+    const RM=D.mar?R.filter(r=>D.mar[r[3]]):R,SM=sum(RM,5),gpm=grp(RM,3),gam=grp(RM,1),gem=grp(RM,2);
+    const ic=(t,big,sub,val,c)=>`<div class="card p-4"><div class="text-xs" style="color:var(--mut)">${t}</div><div class="font-extrabold truncate mt-1" style="color:${val?'var(--tx)':c}">${big}</div><div class="flex justify-between gap-2 text-xs mt-1" style="color:var(--mut)"><span class="truncate">${sub}</span>${val?`<b style="color:${c}">${val}</b>`:''}</div></div>`;
+    $('#pc').innerHTML=ic(D.mar?'Marafon satışı':'Ümumi məhsul satışı',f1(SM)+' ₼',(S?SM/S*100:0).toFixed(1)+'% ümumi satışdan','','var(--vio)')
+      +(gem[0]?ic('Ən çox satan işçi',D.emps[gem[0].k].n,D.apts[D.emps[gem[0].k].a].n,f1(gem[0].a)+' ₼','var(--gr)'):'')
+      +(gam[0]?ic('Ən çox satan aptek',D.apts[gam[0].k].n,D.apts[gam[0].k].r,f1(gam[0].a)+' ₼','var(--am)'):'')
+      +gpm.slice(0,12).map((x,i)=>`<div class="card p-4"><div class="flex justify-between gap-2"><b class="truncate">${D.prods[x.k]}</b><span class="pill" style="background:${pal[i%15]}22;color:${pal[i%15]}">${(S?x.a/S*100:0).toFixed(1)}%</span></div><div class="text-xl font-extrabold mt-2" style="color:${pal[i%15]}">${f1(x.a)} ₼</div><div class="text-xs mt-1" style="color:var(--mut)">${f0(x.q)} ədəd</div><div class="bar mt-3"><i style="width:${S?x.a/S*100:0}%;background:${pal[i%15]}"></i></div></div>`).join('');
+    const tp=gpm.slice(0,6).map(x=>x.k);
+    const pv=(top,key)=>{const ser=tp.map(p=>({name:D.prods[p],data:top.map(t=>+RM.filter(r=>r[key]===t.k&&r[3]===p).reduce((s,r)=>s+r[5],0).toFixed(1))}));
+      if(gpm.length>6)ser.push({name:'Digər',data:top.map((t,i)=>+(RM.filter(r=>r[key]===t.k).reduce((s,r)=>s+r[5],0)-ser.reduce((s,z)=>s+z.data[i],0)).toFixed(1))});return ser};
+    const ta=gam.slice(0,10),te=gem.slice(0,10);
+    mk('c-ma',stack(ta.map(x=>D.apts[x.k].n),pv(ta,1),400));mk('c-me',stack(te.map(x=>D.emps[x.k].n),pv(te,2),400));
+  }
+  if(tab==='cat'&&DIMS.length){
+    const dm=DIMS[+$('#cdim').value]||DIMS[0],m=new Map();
+    for(const r of R)for(const k of (dm.m?dm.m(r):[dm.f(r)])){let o=m.get(k);if(!o){o={k,a:0,q:0,n:0};m.set(k,o)}o.a+=r[5];o.q+=r[4];o.n++}
+    const lab=k=>String(dm.d?dm.d(k):k),T=S||1;
+    const L=[...m.values()].sort(dm.s?(x,y)=>(x.k>y.k?1:x.k<y.k?-1:0):(x,y)=>y.a-x.a);
+    $('#ct').textContent=dm.n+' üzrə satış';$('#cth').textContent=dm.n;
+    $('#ctb').innerHTML=L.map(x=>`<tr><td><b>${lab(x.k)}</b></td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${f0(x.n)}</td><td>${(x.a/T*100).toFixed(1)}%</td><td><div class="bar"><i style="width:${x.a/T*100}%;background:var(--vio)"></i></div></td></tr>`).join('');
+    const cl=dm.s?L:L.slice(0,15);
+    mk('c-cat1',bar(cl.map(x=>lab(x.k)),cl.map(x=>+x.a.toFixed(1)),pal,Math.max(240,cl.length*34+50)));
+    const dl=[...L].sort((x,y)=>y.a-x.a),top=dl.slice(0,8),rest=dl.slice(8).reduce((s,x)=>s+x.a,0);
+    mk('c-cat2',donut(top.map(x=>lab(x.k)).concat(rest?['Digər']:[]),top.map(x=>+x.a.toFixed(1)).concat(rest?[+rest.toFixed(1)]:[]),340,'Cəmi ₼'));
+  }
+  if(tab==='kv'){
+    const{ar,er}=quotaData(R,a,b),pc=x=>x.q?x.s/x.q*100:0,at=new Map(),et=new Map();
+    for(const r of R){at.set(r[1],(at.get(r[1])||0)+r[5]);et.set(r[2],(et.get(r[2])||0)+r[5])}
+    const Tq=ar.reduce((s,x)=>s+x.q,0),Ts=ar.reduce((s,x)=>s+x.s,0),Tp=Tq?Ts/Tq*100:0;
+    const pill=x=>`<span class="pill" style="background:${col(pc(x))}22;color:${col(pc(x))}">${pc(x).toFixed(1)}%</span>`;
+    $('#kvk').innerHTML=[['Kvota',f1(Tq)+' ₼','var(--cy)'],['Kvota satışı',f1(Ts)+' ₼','var(--vio)'],['İcra %',Tp.toFixed(1)+'%',col(Tp)],['Qalan',f1(Math.max(Tq-Ts,0))+' ₼','var(--am)']].map(KPI).join('');
+    const none=n=>`<tr><td colspan="${n}" style="text-align:center;color:var(--mut)">Kvota tapılmadı (Excelə "Kvota" vərəqi əlavə edin)</td></tr>`;
+    const srt=[...ar].sort((x,y)=>pc(y)-pc(x));
+    $('#kva').innerHTML=srt.map(x=>`<tr class="ck" onclick="openM(${x.k})"><td><b>${D.apts[x.k].n}</b></td><td>${f1(x.q)}</td><td>${f1(x.s)}</td><td>${pill(x)}</td><td>${f1(Math.max(x.q-x.s,0))}</td><td><div class="bar"><i style="width:${Math.min(pc(x),100)}%;background:${col(pc(x))}"></i></div></td></tr>`).join('')||none(6);
+    $('#kve').innerHTML=[...er].sort((x,y)=>pc(y)-pc(x)).map(x=>`<tr><td><b>${D.emps[x.k].n}</b></td><td style="text-align:right">${D.apts[x.a].n}</td><td>${f1(x.q)}</td><td>${f1(x.s)}</td><td>${pill(x)}</td><td>${f1(Math.max(x.q-x.s,0))}</td><td>${at.get(x.a)?((et.get(x.k)||0)/at.get(x.a)*100).toFixed(1):'0.0'}%</td></tr>`).join('')||none(7);
+    const s15=srt.slice(0,15),o=bar(s15.map(x=>D.apts[x.k].n),s15.map(x=>+pc(x).toFixed(1)),pal,Math.max(220,s15.length*34+50));
+    o.dataLabels.formatter=v=>v.toFixed(0)+'%';o.xaxis.labels.formatter=v=>v+'%';o.tooltip={theme:'dark',y:{formatter:v=>v+'%'}};mk('c-kv',o);
+  }
+  if(tab==='grp'){
+    const has=D.groups.length>0;$('#gnone').style.display=has?'none':'';$('#gbody').style.display=has?'':'none';
+    if(has){
+      gsel=Math.min(gsel,D.groups.length-1);
+      $('#gch').innerHTML=D.groups.map((g,i)=>`<button class="tab${i===gsel?' on':''}" data-g="${i}"${i===gsel?'':' style="background:var(--card2)"'}>${g}</button>`).join('');
+      const RG=R.filter(r=>(r[6]>>gsel)&1),SG=sum(RG,5),QG=sum(RG,4),pg=new Map(grp(RG,3).map(x=>[x.k,x]));
+      const prr=[...new Set([...pg.keys(),...(D.gp[gsel]||[])])].map(k=>{const x=pg.get(k)||{a:0,q:0},st=D.stock[k];return{k,a:x.a,q:x.q,st,pc:st?x.q/st*100:null}}).sort((x,y)=>y.a-x.a);
+      const sts=prr.filter(x=>x.st!=null),sT=sts.reduce((s,x)=>s+x.st,0),sS=sts.reduce((s,x)=>s+x.q,0);
+      $('#gk').innerHTML=[[D.groups[gsel]+' satışı',f1(SG)+' ₼','var(--vio)'],['Ümumi satışda pay',(S?SG/S*100:0).toFixed(1)+'%','var(--cy)'],['Satılan ədəd',f0(QG),'var(--gr)'],sT?['Qalıq satışı',(sS/sT*100).toFixed(1)+'% · '+f0(sS)+' / '+f0(sT),col(sS/sT*100),'text-lg']:['Məhsul sayı',String(prr.length),'var(--am)']].map(KPI).join('');
+      $('#gtb').innerHTML=prr.map(x=>`<tr><td><b>${D.prods[x.k]}</b></td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${x.st!=null?f0(x.st):'–'}</td><td>${x.pc!=null?`<span class="pill" style="background:${col(x.pc)}22;color:${col(x.pc)}">${x.pc.toFixed(1)}%</span>`:'–'}</td><td>${x.st!=null?f0(Math.max(x.st-x.q,0)):'–'}</td></tr>`).join('');
+      const g1=grp(RG,1).slice(0,10),g2=grp(RG,2).slice(0,10);
+      mk('c-ga',bar(g1.map(x=>D.apts[x.k].n),g1.map(x=>+x.a.toFixed(1)),pal,380));mk('c-ge',bar(g2.map(x=>D.emps[x.k].n),g2.map(x=>+x.a.toFixed(1)),pal.slice().reverse(),380));
+    }
+  }
+  if(tab==='bon'){
+    const has=D.bonus.length>0;$('#bnone').style.display=has?'none':'';$('#bbody').style.display=has?'':'none';
+    if(has){
+      const BR=D.bonus.filter(x=>{const n=D.dn[x[0]];return n>=a&&n<=b&&(F.apt<0||x[1]===F.apt)&&(F.ray===''||D.apts[x[1]].r===F.ray)});
+      const gb=f=>{const o=new Map();for(const x of BR)o.set(f(x),(o.get(f(x))||0)+x[3]);return [...o].map(([k,v])=>({k,v}))};
+      const TB=BR.reduce((s,x)=>s+x[3],0),be=gb(x=>x[2]).sort((p,q)=>q.v-p.v),ba=gb(x=>x[1]).sort((p,q)=>q.v-p.v),bd=gb(x=>x[0]).sort((p,q)=>p.k-q.k);
+      const bm=new Map();BR.forEach(x=>{const k=D.dates[x[0]].slice(0,7),o=bm.get(k)||{v:0,d:new Set()};o.v+=x[3];o.d.add(x[0]);bm.set(k,o)});
+      $('#bk').innerHTML=[['Bonus kartı',f0(TB),'var(--gr)'],['Günlük orta',f1(TB/days),'var(--cy)'],['Ən çox açan işçi',be[0]?D.emps[be[0].k].n+' · '+f0(be[0].v):'–','var(--vio)','text-lg'],['Ən çox açan aptek',ba[0]?D.apts[ba[0].k].n+' · '+f0(ba[0].v):'–','var(--am)','text-lg']].map(KPI).join('');
+      const cb=(c,v,h)=>{const o=bar(c,v,pal,h);o.tooltip={theme:'dark',y:{formatter:z=>f0(z)+' kart'}};return o};
+      const e15=be.slice(0,15),a12=ba.slice(0,12);
+      mk('c-be',cb(e15.map(x=>D.emps[x.k].n),e15.map(x=>x.v),Math.max(240,e15.length*34+50)));
+      mk('c-ba',cb(a12.map(x=>D.apts[x.k].n),a12.map(x=>x.v),Math.max(240,a12.length*34+50)));
+      const lo=line(bd.map(x=>D.dates[x.k]),bd.map(x=>x.v),260,'Kart');lo.tooltip={theme:'dark',y:{formatter:z=>f0(z)+' kart'}};mk('c-bt',lo);
+      $('#bmt').innerHTML=[...bm].sort((p,q)=>p[0]>q[0]?1:-1).map(([k,o])=>`<tr><td><b>${MON[+k.slice(5,7)-1]+' '+k.slice(0,4)}</b></td><td>${f0(o.v)}</td><td>${o.d.size}</td><td>${f1(o.v/o.d.size)}</td></tr>`).join('');
+      $('#bet').innerHTML=be.map((x,i)=>`<tr><td><div class="flex items-center gap-2"><span class="rk ${i<3?'t':''}">${i+1}</span><b>${D.emps[x.k].n}</b></div></td><td>${D.apts[D.emps[x.k].a].n}</td><td>${f0(x.v)}</td><td>${(TB?x.v/TB*100:0).toFixed(1)}%</td></tr>`).join('');
+    }
+  }
+  if(tab==='dash'){
+    const sc=scoreEmps(R,a,b),t10=sc.slice(0,10),MD=['🥇','🥈','🥉'],nm=x=>D.emps[x.k].n,ap=x=>D.apts[D.emps[x.k].a].n;
+    $('#trf').textContent='Xal (0–100): satış '+sc.W.s+'%'+(sc.W.b?' + bonus kartı '+sc.W.b+'%':'')+(sc.W.q?' + kvota icrası '+sc.W.q+'%':'')+'. Hər göstərici ən yaxşı işçiyə nisbətdə hesablanır.';
+    $('#trk').innerHTML=t10.map((x,i)=>`<div class="flex items-center gap-3 py-2" style="border-bottom:1px solid #20285066"><div class="text-xl w-8 text-center">${MD[i]||'<span class="rk">'+(i+1)+'</span>'}</div><div class="min-w-0 flex-1"><div class="font-bold truncate ck" onclick="openM(${D.emps[x.k].a})">${nm(x)}</div><div class="text-xs truncate" style="color:var(--mut)">${ap(x)} · ${f0(x.s)} ₼${D.bonus.length?' · '+f0(x.bc)+' kart':''}${x.qp!=null?' · kvota '+(x.qp*100).toFixed(0)+'%':''}</div></div><b style="color:${i<3?'#fbbf24':'var(--tx)'}">${x.sc.toFixed(1)}</b></div>`).join('');
+    const o=bar(t10.map(nm),t10.map(x=>+x.sc.toFixed(1)),pal,Math.max(240,t10.length*34+50));o.dataLabels.formatter=v=>v.toFixed(1);o.xaxis.labels.formatter=v=>v;o.tooltip={theme:'dark',y:{formatter:v=>v+' xal'}};mk('c-tr',o);
+    const seen=new Set(),ld=[];for(const x of sc){const q=D.emps[x.k].a;if(!seen.has(q)){seen.add(q);ld.push(x)}}
+    $('#apl').innerHTML=ld.sort((p,q)=>q.sc-p.sc).map(x=>`<div class="rounded-xl p-3 ck" style="background:var(--card2)" onclick="openM(${D.emps[x.k].a})"><div class="text-xs truncate" style="color:var(--mut)">${ap(x)}</div><div class="font-bold truncate mt-1">🏅 ${nm(x)}</div><div class="text-xs mt-1" style="color:var(--am)">${x.sc.toFixed(1)} xal</div></div>`).join('');
+  }
+  if(tab==='day'){
+    const ds=dsel||D.dates[D.dates.length-1],dN=dn(ds);$('#gd').value=ds;
+    const RD=rowsIn(dN,dN),BD=D.bonus.filter(x=>D.dn[x[0]]===dN&&(F.apt<0||x[1]===F.apt)&&(F.ray===''||D.apts[x[1]].r===F.ray));
+    const eS=new Map(),eB=new Map(),cards=BD.reduce((s,x)=>s+x[3],0),hasB=D.bonus.length>0;
+    RD.forEach(r=>eS.set(r[2],(eS.get(r[2])||0)+r[5]));BD.forEach(x=>eB.set(x[2],(eB.get(x[2])||0)+x[3]));
+    $('#dk').innerHTML=[['Günün satışı',f1(sum(RD,5))+' ₼','var(--vio)'],['Satılan ədəd',f0(sum(RD,4)),'var(--cy)'],['Satış edən işçi',String(eS.size),'var(--gr)'],['Bonus kartı',hasB?f0(cards):'–','var(--am)']].map(KPI).join('');
+    const E=[...eS].sort((x,y)=>y[1]-x[1]);
+    const win=(ic,t,e,val,sub,c)=>`<div class="card p-4 flex gap-3 items-center"><div class="w-12 h-12 rounded-2xl grid place-items-center text-2xl flex-none" style="background:${c}22">${ic}</div><div class="min-w-0"><div class="text-xs" style="color:var(--mut)">${t}</div><div class="font-extrabold truncate">${e==null?'–':D.emps[e].n}</div><div class="text-xs truncate ${e==null?'':'ck'}" style="color:var(--mut)" ${e==null?'':`onclick="openM(${D.emps[e].a})"`}>${e==null?'':D.apts[D.emps[e].a].n}</div></div><div class="ml-auto text-right"><div class="font-extrabold" style="color:${c}">${val}</div><div class="text-xs" style="color:var(--mut)">${sub}</div></div></div>`;
+    const GI=n=>{n=n.toLowerCase();return n.startsWith('qal')?'📦':n.startsWith('kvota')?'🎯':n.startsWith('market')?'🛍️':n.startsWith('maraf')?'🏃':'⭐'};
+    let w=win('🏆','Günün ən çox satan işçisi',E[0]?E[0][0]:null,E[0]?f1(E[0][1])+' ₼':'–','','#fbbf24');
+    w+=win('📉','Günün ən az satan işçisi',E.length>1?E[E.length-1][0]:null,E.length>1?f1(E[E.length-1][1])+' ₼':'–','satışı olanlar arasında','#8f98c9');
+    if(hasB){const bt=[...eB].sort((x,y)=>y[1]-x[1])[0];w+=win('💳','Bonus kartı üzrə günün 1-cisi',bt?bt[0]:null,bt?f0(bt[1])+' kart':'–','cəmi '+f0(cards)+' kart','#34d399')}
+    D.groups.forEach((g,i)=>{const gm=new Map();RD.forEach(r=>{if((r[6]>>i)&1)gm.set(r[2],(gm.get(r[2])||0)+r[5])});const tp=[...gm].sort((x,y)=>y[1]-x[1])[0];w+=win(GI(g),'Günün 1-cisi · '+g,tp?tp[0]:null,tp?f1(tp[1])+' ₼':'–','',pal[(i+3)%15])});
+    $('#dw').innerHTML=w;
+    const ag=new Map();RD.forEach(r=>{let o=ag.get(r[1]);if(!o){o={k:r[1],a:0,es:new Map()};ag.set(r[1],o)}o.a+=r[5];o.es.set(r[2],(o.es.get(r[2])||0)+r[5])});
+    const bA=new Map();BD.forEach(x=>bA.set(x[1],(bA.get(x[1])||0)+x[3]));
+    const qm=new Map(quotaData(RD,dN,dN).ar.map(x=>[x.k,x])),hasQ=qm.size>0;
+    $('#dath').innerHTML='<tr>'+['Aptek','Dövriyyə','Ən çox satan','Ən az satan'].concat(hasB?['Bonus kartı','Bonus açmayan']:[]).concat(hasQ?['Gün kvotası']:[]).map(x=>`<th style="cursor:default">${x}</th>`).join('')+'</tr>';
+    const nb=[];
+    $('#dat').innerHTML=[...ag.values()].sort((x,y)=>y.a-x.a).map(o=>{const es=[...o.es].sort((x,y)=>y[1]-x[1]),no=hasB?es.filter(e=>!eB.has(e[0])):[],q=qm.get(o.k);if(no.length)nb.push([o.k,no.map(e=>e[0])]);
+      return `<tr class="ck" onclick="openM(${o.k})"><td><b>${D.apts[o.k].n}</b></td><td>${f1(o.a)}</td><td style="text-align:right">${D.emps[es[0][0]].n} · ${f0(es[0][1])} ₼</td><td style="text-align:right">${es.length>1?D.emps[es[es.length-1][0]].n+' · '+f0(es[es.length-1][1])+' ₼':'–'}</td>${hasB?`<td>${f0(bA.get(o.k)||0)}</td><td>${no.length} / ${es.length}</td>`:''}${hasQ?`<td>${q&&q.q?`<span class="pill" style="background:${col(q.s/q.q*100)}22;color:${col(q.s/q.q*100)}">${(q.s/q.q*100).toFixed(0)}%</span> <small style="color:var(--mut)">${f0(q.s)} / ${f0(q.q)}</small>`:'–'}</td>`:''}</tr>`}).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--mut)">Bu gün üçün satış yoxdur</td></tr>';
+    $('#dnb').innerHTML=!hasB?'<div class="text-sm" style="color:var(--mut)">Bonus məlumatı yoxdur ("Bonus" vərəqi əlavə edin)</div>':(nb.length?nb.map(([k,l])=>`<div class="mb-3"><div class="text-xs font-bold ck" style="color:var(--cy)" onclick="openM(${k})">${D.apts[k].n}</div><div class="flex flex-wrap gap-1.5 mt-1">${l.map(e=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.emps[e].n}</span>`).join('')}</div></div>`).join(''):'<div class="text-sm" style="color:var(--gr)">Hamı bonus kartı açıb 👏</div>');
+    const da=parseInt($('#gda').value,10),RDA=da>=0?RD.filter(r=>r[1]===da):RD,dd=grp(RDA,3).slice(0,10);
+    mk('c-dd',bar(dd.map(x=>D.prods[x.k]),dd.map(x=>+x.a.toFixed(1)),pal,Math.max(240,dd.length*34+50)));
+  }
+  if(tab==='drug'){
+    const R2=D.rows.filter(r=>{const n=D.dn[r[0]];return n>=a&&n<=b&&(F.apt<0||r[1]===F.apt)&&(F.ray===''||D.apts[r[1]].r===F.ray)});
+    const gd=grp(R2,3),sold=new Set(gd.map(x=>x.k)),zero=D.prods.map((_,i)=>i).filter(i=>!sold.has(i)),S2=sum(R2,5)||1,na=new Map();
+    R2.forEach(r=>{let z=na.get(r[3]);if(!z){z=new Set();na.set(r[3],z)}z.add(r[1])});
+    $('#pk').innerHTML=[['Dərman sayı',String(D.prods.length),'var(--cy)'],['Satılan',String(gd.length),'var(--vio)'],['Heç satılmayan',String(zero.length),zero.length?'var(--am)':'var(--gr)'],['Ümumi satış',f1(S2)+' ₼','var(--gr)']].map(KPI).join('');
+    const t15=gd.slice(0,15);mk('c-pt',bar(t15.map(x=>D.prods[x.k]),t15.map(x=>+x.a.toFixed(1)),pal,Math.max(260,t15.length*34+50)));
+    $('#pz').innerHTML=zero.length?zero.map(i=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.prods[i]}</span>`).join(''):'<span class="text-sm" style="color:var(--gr)">Bütün dərmanlar satılıb</span>';
+    $('#ptb').innerHTML=gd.map(x=>`<tr><td><b>${D.prods[x.k]}</b></td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${(na.get(x.k)||new Set()).size}</td><td>${(x.a/S2*100).toFixed(1)}%</td></tr>`).join('');
+    const top8=gd.slice(0,8),am=new Map();R2.forEach(r=>{let o=am.get(r[1]);if(!o){o={k:r[1],a:0,p:new Map()};am.set(r[1],o)}o.a+=r[5];o.p.set(r[3],(o.p.get(r[3])||0)+r[5])});
+    let mx=1;am.forEach(o=>top8.forEach(x=>{mx=Math.max(mx,o.p.get(x.k)||0)}));
+    $('#pmx').innerHTML='<thead><tr><th style="cursor:default">Aptek</th>'+top8.map(x=>`<th style="cursor:default" title="${D.prods[x.k]}">${D.prods[x.k].slice(0,14)}</th>`).join('')+'<th style="cursor:default">Ən çox satılan</th><th style="cursor:default">Satılmayan</th></tr></thead><tbody>'+[...am.values()].sort((x,y)=>y.a-x.a).map(o=>{const tp=[...o.p].sort((x,y)=>y[1]-x[1])[0];return `<tr class="ck" onclick="openM(${o.k})"><td><b>${D.apts[o.k].n}</b></td>${top8.map(x=>{const v=o.p.get(x.k)||0;return `<td style="background:rgba(139,92,246,${(v/mx*.6).toFixed(2)})">${v?f0(v):'–'}</td>`}).join('')}<td style="text-align:right">${D.prods[tp[0]]}</td><td>${D.prods.length-o.p.size}</td></tr>`}).join('')+'</tbody>';
+  }
+  if(mod>=0)renderM();
+}
+
+function renderM(){
+  const{a,b,days}=ctx(),R=rowsIn(a,b,mod),All=rowsIn(a,b,-1),m=D.apts[mod];
+  const S=sum(R,5),Q=sum(R,4),TA=sum(All,5),rk=grp(All,1).findIndex(x=>x.k===mod)+1;
+  const tgt=(F.prod<0&&D.targets[m.n])?D.targets[m.n]*tgtFactor(a,b):0,p=tgt?S/tgt*100:0;
+  $('#m-t').textContent=m.n;$('#m-s').textContent=m.r+' · reytinq '+rk+'/'+D.apts.length+' · '+fd(F.from)+' – '+fd(F.to);
+  $('#m-k').innerHTML=[['Satış',f1(S)+' ₼','var(--vio)'],['Ədəd',f0(Q),'var(--cy)'],tgt?['Hədəf',f1(tgt)+' ₼','var(--am)']:['Günlük orta',f1(S/days)+' ₼','var(--am)'],tgt?['Qalan',f1(Math.max(tgt-S,0))+' ₼',col(p)]:['Ümumi satışda pay',(TA?S/TA*100:0).toFixed(1)+'%','var(--gr)']]
+   .map(k=>`<div class="rounded-xl p-3" style="background:var(--card2)"><span class="text-xs" style="color:var(--mut)">${k[0]}</span><div class="font-extrabold mt-1" style="color:${k[2]}">${k[1]}</div></div>`).join('');
+  $('#m-g0').classList.toggle('hidden',!tgt);$('#m-g1').classList.toggle('hidden',!!tgt);
+  if(tgt){
+    const o=base(290,'radialBar');o.series=[+Math.min(p,100).toFixed(1)];o.labels=['İcra'];o.colors=[col(p)];o.stroke={lineCap:'round'};
+    o.plotOptions={radialBar:{hollow:{size:'60%'},track:{background:'#252d58'},dataLabels:{name:{color:'#8f98c9'},value:{color:'#e8ebff',fontSize:'30px',fontWeight:800,formatter:()=>p.toFixed(1)+'%'}}}};mk('c-d0',o);
+    $('#m-gt').textContent='Hədəfin '+p.toFixed(1)+'% tamamlanıb · qalan '+f1(Math.max(tgt-S,0))+' ₼';
+  }else{const gp=grp(R,3);mk('c-d1',donut(gp.map(x=>D.prods[x.k]),gp.map(x=>+x.a.toFixed(1)),290,'Cəmi ₼'))}
+  const byD=new Map();R.forEach(r=>byD.set(r[0],(byD.get(r[0])||0)+r[5]));const ds=[...byD.keys()].sort((x,y)=>x-y);
+  mk('c-d2',line(ds.map(i=>D.dates[i]),ds.map(i=>+byD.get(i).toFixed(1)),290));
+  const ge=grp(R,2);mk('c-d3',bar(ge.map(x=>D.emps[x.k].n),ge.map(x=>+x.a.toFixed(1)),pal,Math.max(200,ge.length*44+50)));
+  const qd=quotaData(R,a,b),eqm=new Map(qd.er.map(x=>[x.k,x])),aqq=qd.ar.find(x=>x.k===mod),bc=new Map(),tot=new Map();
+  D.bonus.forEach(x=>{const n=D.dn[x[0]];if(x[1]===mod&&n>=a&&n<=b)bc.set(x[2],(bc.get(x[2])||0)+x[3])});
+  R.forEach(r=>tot.set(r[2],(tot.get(r[2])||0)+r[5]));
+  const ids=[...new Set([...tot.keys(),...eqm.keys(),...bc.keys()])].filter(j=>D.emps[j].a===mod).sort((x,y)=>(tot.get(y)||0)-(tot.get(x)||0));
+  const hd=aqq?`<p class="text-sm mb-2" style="color:var(--mut)">Aptek kvotası: <b>${f1(aqq.q)} ₼</b> · kvota satışı <b>${f1(aqq.s)} ₼</b> · <b style="color:${col(aqq.s/aqq.q*100)}">${(aqq.s/aqq.q*100).toFixed(1)}%</b></p>`:'';
+  const TH2=['İşçi','Satış','Aptek dövriyyəsində pay','Kvota','Kvota icrası','Qalan','Bonus kartı'].map(x=>`<th style="cursor:default">${x}</th>`).join('');
+  const d4=grp(R,3).slice(0,10);mk('c-d4',bar(d4.map(x=>D.prods[x.k]),d4.map(x=>+x.a.toFixed(1)),pal,Math.max(240,d4.length*34+50)));
+  const Rn=D.rows.filter(r=>{const n=D.dn[r[0]];return n>=a&&n<=b&&r[1]===mod}),sn=new Set(Rn.map(r=>r[3])),zr=D.prods.map((_,i)=>i).filter(i=>!sn.has(i));
+  const gr=D.groups.map((g,i)=>[g,R.filter(r=>(r[6]>>i)&1).reduce((s,r)=>s+r[5],0)]);
+  $('#m-z').innerHTML=(gr.length?`<h3 class="font-bold text-sm mb-1">Məhsul qrupları</h3><div class="sx"><table><tbody>${gr.map(([g,v])=>`<tr><td><b>${g}</b></td><td>${f1(v)} ₼</td><td>${S?(v/S*100).toFixed(1):'0.0'}%</td></tr>`).join('')}</tbody></table></div>`:'')+`<h3 class="font-bold text-sm mt-3 mb-1">Bu apteklə satışı olmayan dərmanlar (${zr.length})</h3><div class="flex flex-wrap gap-1.5">${zr.map(i=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.prods[i]}</span>`).join('')||'<span class="text-sm" style="color:var(--gr)">Yoxdur</span>'}</div>`;
+  $('#m-q').innerHTML=`<h3 class="font-bold text-sm mb-1">İşçilər: dövriyyə payı, kvota və bonus</h3>${hd}<div class="sx"><table><thead><tr>${TH2}</tr></thead><tbody>${ids.map(j=>{const t=tot.get(j)||0,q=eqm.get(j),p=q&&q.q?q.s/q.q*100:null;return `<tr><td><b>${D.emps[j].n}</b></td><td>${f1(t)} ₼</td><td>${S?(t/S*100).toFixed(1):'0.0'}%</td><td>${q?f1(q.q)+' ₼':'–'}</td><td>${p!=null?`<span class="pill" style="background:${col(p)}22;color:${col(p)}">${p.toFixed(1)}%</span> <small style="color:var(--mut)">${f1(q.s)} ₼</small>`:'–'}</td><td>${q?f1(Math.max(q.q-q.s,0))+' ₼':'–'}</td><td>${bc.has(j)?f0(bc.get(j)):'–'}</td></tr>`}).join('')}</tbody></table></div>`;
+}
+function openM(i){mod=i;$('#modal').classList.remove('hidden');document.body.style.overflow='hidden';renderM()}
+function closeM(){mod=-1;$('#modal').classList.add('hidden');document.body.style.overflow=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM()});
+
+function show(t){
+  tab=t;$$('.tab[data-t]').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  ['dash','day','apt','emp','mar','drug','cat','kv','grp','bon'].forEach(x=>{const el=$('#p-'+x);el.classList.toggle('hidden',x!==t);if(x===t){el.classList.remove('fade');void el.offsetWidth;el.classList.add('fade')}});
+  render();setTimeout(()=>window.dispatchEvent(new Event('resize')),60);
+}
+function setRange(days){
+  const last=D.dates[D.dates.length-1],first=D.dates[0];
+  F.to=last;F.from=days?new Date(Math.max(dn(first),dn(last)-days+1)*864e5).toISOString().slice(0,10):first;sync();render();
+}
+function sync(){$('#d1').value=F.from;$('#d2').value=F.to}
+
+function init(){
+  const last=D.dates[D.dates.length-1],first=D.dates[0];
+  $('#d1').min=$('#d2').min=first;$('#d1').max=$('#d2').max=last;
+  $('#fa').innerHTML='<option value="-1">Bütün apteklər</option>'+D.apts.map((x,i)=>`<option value="${i}">${x.n}</option>`).join('');
+  const ry=[...new Set(D.apts.map(x=>x.r))].sort();
+  const one=ry.length<2;$('#fr').style.display=one?'none':'';$('#c-ray').parentElement.style.display=one?'none':'';
+  $('#fr').innerHTML='<option value="">Bütün rayonlar</option>'+ry.map(r=>`<option>${r}</option>`).join('');
+  $('#fp').innerHTML='<option value="-1">Bütün məhsullar</option>'+D.prods.map((x,i)=>`<option value="${i}">${x}</option>`).join('');
+  F={from:first,to:last,apt:-1,ray:'',prod:-1};setRange(30);
+}
+let ENC=null,PW='';
+try{PW=localStorage.getItem('zadpw')||''}catch(e){}
+function askPw(err){return new Promise(res=>{const b=$('#pwbox');b.classList.remove('hidden');$('#pwerr').textContent=err||'';const go=()=>{const v=$('#pwin').value;if(!v)return;b.classList.add('hidden');$('#pwin').value='';res(v)};$('#pwgo').onclick=go;$('#pwin').onkeydown=e=>{if(e.key==='Enter')go()}})}
+async function decryptEnc(buf,pw){
+  const u=new Uint8Array(buf),salt=u.slice(4,20),iv=u.slice(20,32),ct=u.slice(32);
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct);
+  return JSON.parse(await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+}
+async function getData(manual){
+  if(ENC!==true){
+    if(ENC===false&&D&&!manual){const h=await fetch('data.json',{method:'HEAD',cache:'no-store'});if(!h.ok)throw 0;const lm=h.headers.get('last-modified')||'';if(lm&&lm===lastMod)return null}
+    const r=await fetch('data.json',{cache:'no-store'});
+    if(r.ok&&(r.headers.get('content-type')||'').includes('json')){ENC=false;lastMod=r.headers.get('last-modified')||'';return await r.json()}
+    ENC=true;
+  }
+  const r2=await fetch('data.enc',{cache:'no-store'});if(!r2.ok)throw 0;
+  const buf=await r2.arrayBuffer();let msg='';
+  for(;;){
+    if(!PW)PW=await askPw(msg);
+    try{const j=await decryptEnc(buf,PW);try{if($('#pwsave').checked)localStorage.setItem('zadpw',PW)}catch(e){}return j}
+    catch(e){PW='';msg='Parol yanlışdır';try{localStorage.removeItem('zadpw')}catch(e2){}}
+  }
+}
+async function load(manual){
+  try{
+    const j=await getData(manual);if(!j)return;
+    if(j.generated===gen&&!manual)return;
+    const first=!D;D=j;gen=j.generated;D.dn=D.dates.map(dn);D.quota=D.quota||{a:{},e:{}};D.groups=D.groups||[];D.bonus=D.bonus||[];D.gp=D.gp||[];D.stock=D.stock||{};if(D.qg==null)D.qg=-1;buildDims();
+    $('#gen').textContent='Son yenilənmə: '+j.generated;
+    if(first)init();else{const last=D.dates[D.dates.length-1];$('#d1').max=$('#d2').max=last;render()}
+    if(first)show('dash');
+  }catch(e){$('#gen').textContent='Data yüklənmədi'}
+}
+$$('.tab[data-t]').forEach(b=>b.onclick=()=>show(b.dataset.t));
+$$('#quick .tab').forEach(b=>b.onclick=()=>setRange(+b.dataset.q));
+$('#d1').onchange=e=>{F.from=e.target.value;if(F.from>F.to){F.to=F.from;sync()}render()};
+$('#d2').onchange=e=>{F.to=e.target.value;if(F.to<F.from){F.from=F.to;sync()}render()};
+$('#fa').onchange=e=>{F.apt=+e.target.value;render()};
+$('#fr').onchange=e=>{F.ray=e.target.value;render()};
+$('#fp').onchange=e=>{F.prod=+e.target.value;render()};
+$('#q').oninput=render;
+$('#cdim').onchange=render;
+$('#gda').onchange=render;$('#gd').onchange=e=>{dsel=e.target.value;render()};$('#gdl').onclick=()=>{dsel='';render()};
+const stepDay=d=>{const i=D.dates.indexOf(dsel||D.dates[D.dates.length-1]),j=Math.min(D.dates.length-1,Math.max(0,(i<0?D.dates.length-1:i)+d));dsel=D.dates[j];render()};
+$('#gdp').onclick=()=>stepDay(-1);$('#gdn').onclick=()=>stepDay(1);
+$('#gch').onclick=e=>{const bt=e.target.closest&&e.target.closest('button');if(bt&&bt.dataset.g!=null){gsel=+bt.dataset.g;render()}};
+$('#reload').onclick=()=>load(true);
+load();setInterval(load,600000);
+</script>
+</body>
+</html>
