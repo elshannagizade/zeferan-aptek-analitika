@@ -86,6 +86,7 @@ tfoot td{font-weight:700;background:var(--card2);border-bottom:0}
   </main>
 
   <main id="p-apt" class="hidden">
+    <div id="atk" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4"></div>
     <div class="card p-4">
       <h2 class="font-bold mb-3">Ümumi Apteklərin Satışı <span class="text-xs font-normal" style="color:var(--mut)">· sətrə klik edin</span></h2>
       <div class="sx"><table><thead id="ath"></thead><tbody id="atb"></tbody><tfoot id="atf"></tfoot></table></div>
@@ -327,13 +328,14 @@ function render(){
     wo.xaxis={categories:WD,labels:{style:{colors:'#8f98c9'}}};wo.yaxis={labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)}};wo.colors=pal;wo.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};mk('c-wd',wo);
   }
   if(tab==='apt'){
-    const rows=ga.map(x=>{const t=tg(x.k);return{k:x.k,n:D.apts[x.k].n,r:D.apts[x.k].r,a:x.a,q:x.q,sh:S?x.a/S*100:0,t,p:t?x.a/t*100:0,l:t?Math.max(t-x.a,0):0}});
+    const rows=ga.map(x=>{const t=tg(x.k);return{k:x.k,n:D.apts[x.k].n,r:D.apts[x.k].r,a:x.a,q:x.q,sh:S?x.a/S*100:0,t,p:t?x.a/t*100:0,l:t?Math.max(t-x.a,0):0,lp:t?Math.max(100-x.a/t*100,0):0}});
     rows.sort((x,y)=>sortK==='n'?sortD*x.n.localeCompare(y.n,'az',{numeric:true}):sortD*(x[sortK]-y[sortK]));
     const th=(k,l)=>`<th data-s="${k}">${l}${sortK===k?(sortD<0?' ▾':' ▴'):''}</th>`;
-    $('#ath').innerHTML='<tr>'+th('n','Aptek')+th('r','Rayon').replace('data-s="r"','style="cursor:default"')+(hasT?th('t','Hədəf')+th('l','Qalan'):'')+th('a','Satış')+th('q','Ədəd')+th('sh','Pay %')+(hasT?th('p','İcra %'):'')+'<th style="cursor:default;min-width:120px">Gedişat</th></tr>';
-    $('#atb').innerHTML=rows.map(x=>`<tr class="ck" onclick="openM(${x.k})"><td><b>${x.n}</b></td><td style="text-align:right">${x.r}</td>${hasT?`<td>${x.t?f1(x.t):'–'}</td><td>${x.t?f1(x.l):'–'}</td>`:''}<td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${x.sh.toFixed(1)}%</td>${hasT?`<td>${x.t?`<span class="pill" style="background:${col(x.p)}22;color:${col(x.p)}">${x.p.toFixed(2)}%</span>`:'–'}</td>`:''}<td><div class="bar"><i style="width:${hasT&&x.t?Math.min(x.p,100):x.sh*2.5}%;background:${hasT&&x.t?col(x.p):'var(--vio)'}"></i></div></td></tr>`).join('');
-    const T=rows.reduce((s,x)=>s+x.t,0);
-    $('#atf').innerHTML=`<tr><td>Total</td><td></td>${hasT?`<td>${f1(T)}</td><td>${f1(Math.max(T-S,0))}</td>`:''}<td>${f1(S)}</td><td>${f0(Q)}</td><td>100%</td>${hasT?`<td>${T?(S/T*100).toFixed(2)+'%':'–'}</td>`:''}<td></td></tr>`;
+    $('#ath').innerHTML='<tr>'+th('n','Aptek')+th('r','Rayon').replace('data-s="r"','style="cursor:default"')+(hasT?th('t','Hədəf (₼)'):'')+th('a','Dövriyyə (₼)')+(hasT?th('p','Tamamlanıb %')+th('l','Qalan (₼)')+th('lp','Qalan %'):'')+th('q','Ədəd')+th('sh','Pay %')+'<th style="cursor:default;min-width:120px">Gedişat</th></tr>';
+    $('#atb').innerHTML=rows.map(x=>`<tr class="ck" onclick="openM(${x.k})"><td><b>${x.n}</b></td><td style="text-align:right">${x.r}</td>${hasT?`<td>${x.t?f1(x.t):'–'}</td>`:''}<td>${f1(x.a)}</td>${hasT?`<td>${x.t?`<span class="pill" style="background:${col(x.p)}22;color:${col(x.p)}">${x.p.toFixed(2)}%</span>`:'–'}</td><td>${x.t?f1(x.l):'–'}</td><td>${x.t?x.lp.toFixed(2)+'%':'–'}</td>`:''}<td>${f0(x.q)}</td><td>${x.sh.toFixed(1)}%</td><td><div class="bar"><i style="width:${hasT&&x.t?Math.min(x.p,100):x.sh*2.5}%;background:${hasT&&x.t?col(x.p):'var(--vio)'}"></i></div></td></tr>`).join('');
+    const T=rows.reduce((s,x)=>s+x.t,0),Sx=rows.reduce((s,x)=>s+(x.t?x.a:0),0),Pt=T?Sx/T*100:0,Lt=T?Math.max(100-Pt,0):0;
+    $('#atf').innerHTML=`<tr><td>Total</td><td></td>${hasT?`<td>${f1(T)}</td>`:''}<td>${f1(S)}</td>${hasT?`<td>${T?Pt.toFixed(2)+'%':'–'}</td><td>${f1(Math.max(T-Sx,0))}</td><td>${T?Lt.toFixed(2)+'%':'–'}</td>`:''}<td>${f0(Q)}</td><td>100%</td><td></td></tr>`;
+    $('#atk').innerHTML=hasT&&T?[['Ümumi hədəf',f1(T)+' ₼','var(--cy)'],['Dövriyyə (tamamlanıb)',f1(Sx)+' ₼','var(--vio)'],['Tamamlanıb %',Pt.toFixed(1)+'%',col(Pt)],['Qalan məbləğ',f1(Math.max(T-Sx,0))+' ₼','var(--am)'],['Qalan %',Lt.toFixed(1)+'%','var(--am)']].map(KPI).join(''):(Object.keys(D.targets).length>0?'<div class="card p-4 col-span-full text-sm" style="color:var(--mut)">Hədəf yalnız bütün məhsullar seçiləndə göstərilir (məhsul filtri seçilib).</div>':'');
     $$('#ath th[data-s]').forEach(h=>h.onclick=()=>{const k=h.dataset.s;sortD=sortK===k?-sortD:-1;sortK=k;render()});
   }
   if(tab==='emp'){
@@ -464,13 +466,13 @@ function renderM(){
   const S=sum(R,5),Q=sum(R,4),TA=sum(All,5),rk=grp(All,1).findIndex(x=>x.k===mod)+1;
   const tgt=(F.prod<0&&D.targets[m.n])?D.targets[m.n]*tgtFactor(a,b):0,p=tgt?S/tgt*100:0;
   $('#m-t').textContent=m.n;$('#m-s').textContent=m.r+' · reytinq '+rk+'/'+D.apts.length+' · '+fd(F.from)+' – '+fd(F.to);
-  $('#m-k').innerHTML=[['Satış',f1(S)+' ₼','var(--vio)'],['Ədəd',f0(Q),'var(--cy)'],tgt?['Hədəf',f1(tgt)+' ₼','var(--am)']:['Günlük orta',f1(S/days)+' ₼','var(--am)'],tgt?['Qalan',f1(Math.max(tgt-S,0))+' ₼',col(p)]:['Ümumi satışda pay',(TA?S/TA*100:0).toFixed(1)+'%','var(--gr)']]
+  $('#m-k').innerHTML=[[tgt?'Dövriyyə (tamamlanıb)':'Satış',f1(S)+' ₼','var(--vio)'],['Ədəd',f0(Q),'var(--cy)'],tgt?['Hədəf',f1(tgt)+' ₼','var(--am)']:['Günlük orta',f1(S/days)+' ₼','var(--am)'],tgt?['Qalan',f1(Math.max(tgt-S,0))+' ₼',col(p)]:['Ümumi satışda pay',(TA?S/TA*100:0).toFixed(1)+'%','var(--gr)']]
    .map(k=>`<div class="rounded-xl p-3" style="background:var(--card2)"><span class="text-xs" style="color:var(--mut)">${k[0]}</span><div class="font-extrabold mt-1" style="color:${k[2]}">${k[1]}</div></div>`).join('');
   $('#m-g0').classList.toggle('hidden',!tgt);$('#m-g1').classList.toggle('hidden',!!tgt);
   if(tgt){
     const o=base(290,'radialBar');o.series=[+Math.min(p,100).toFixed(1)];o.labels=['İcra'];o.colors=[col(p)];o.stroke={lineCap:'round'};
     o.plotOptions={radialBar:{hollow:{size:'60%'},track:{background:'#252d58'},dataLabels:{name:{color:'#8f98c9'},value:{color:'#e8ebff',fontSize:'30px',fontWeight:800,formatter:()=>p.toFixed(1)+'%'}}}};mk('c-d0',o);
-    $('#m-gt').textContent='Hədəfin '+p.toFixed(1)+'% tamamlanıb · qalan '+f1(Math.max(tgt-S,0))+' ₼';
+    $('#m-gt').textContent='Tamamlanıb: '+p.toFixed(1)+'% ('+f1(S)+' ₼) · Qalan: '+Math.max(100-p,0).toFixed(1)+'% ('+f1(Math.max(tgt-S,0))+' ₼)';
   }else{const gp=grp(R,3);mk('c-d1',donut(gp.map(x=>D.prods[x.k]),gp.map(x=>+x.a.toFixed(1)),290,'Cəmi ₼'))}
   const byD=new Map();R.forEach(r=>byD.set(r[0],(byD.get(r[0])||0)+r[5]));const ds=[...byD.keys()].sort((x,y)=>x-y);
   mk('c-d2',line(ds.map(i=>D.dates[i]),ds.map(i=>+byD.get(i).toFixed(1)),290));
