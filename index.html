@@ -245,6 +245,12 @@ function stack(cats,series,h){
   o.plotOptions={bar:{horizontal:true,borderRadius:3,barHeight:'64%'}};o.dataLabels={enabled:false};
   o.xaxis={categories:cats,labels:{style:{colors:'#8f98c9'},formatter:v=>f0(v)}};o.yaxis={labels:{style:{colors:'#e8ebff'},maxWidth:150}};
   o.tooltip={theme:'dark',y:{formatter:v=>f1(v)+' ₼'}};return o}
+const TOPN=10;
+function topSlices(gp,names){ // çox sayda məhsul olanda qrafikdə yalnız ilk 10 + "Digər" göstərilir (donma olmasın)
+  const t=gp.slice(0,TOPN),rs=gp.slice(TOPN).reduce((s,x)=>s+x.a,0);
+  return[t.map(x=>names[x.k]).concat(rs>0?['Digər ('+(gp.length-TOPN)+')']:[]),t.map(x=>+x.a.toFixed(1)).concat(rs>0?[+rs.toFixed(1)]:[])]}
+const PILL=i=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.prods[i]}</span>`;
+const pillsCap=(arr,n)=>arr.slice(0,n).map(PILL).join('')+(arr.length>n?`<span class="text-xs" style="color:var(--mut);align-self:center">… və daha ${arr.length-n} dərman</span>`:'');
 function donut(labels,vals,h,center){
   const o=base(h,'donut');o.series=vals;o.labels=labels;o.colors=pal;o.stroke={width:0};o.dataLabels={enabled:false};
   o.legend={position:'bottom',labels:{colors:'#8f98c9'}};
@@ -320,7 +326,7 @@ function render(){
     const ta=ga.slice(0,10),te=ge.slice(0,10);
     mk('c-apt',bar(ta.map(x=>D.apts[x.k].n),ta.map(x=>+x.a.toFixed(1)),pal,380,(e,c,g)=>openM(ta[g.dataPointIndex].k)));
     mk('c-emp',bar(te.map(x=>D.emps[x.k].n),te.map(x=>+x.a.toFixed(1)),pal.slice().reverse(),380));
-    mk('c-prod',donut(gp.map(x=>D.prods[x.k]),gp.map(x=>+x.a.toFixed(1)),320,'Cəmi ₼'));
+    {const[l,v]=topSlices(gp,D.prods);mk('c-prod',donut(l,v,320,'Cəmi ₼'))}
     const ry=new Map();R.forEach(r=>{const n=D.apts[r[1]].r;ry.set(n,(ry.get(n)||0)+r[5])});const ra=[...ry].sort((x,y)=>y[1]-x[1]);
     mk('c-ray',bar(ra.map(x=>x[0]),ra.map(x=>+x[1].toFixed(1)),pal,320));
     const wd=Array(7).fill(0);R.forEach(r=>{wd[(new Date(D.dn[r[0]]*864e5).getUTCDay()+6)%7]+=r[5]});
@@ -452,8 +458,9 @@ function render(){
     R2.forEach(r=>{let z=na.get(r[3]);if(!z){z=new Set();na.set(r[3],z)}z.add(r[1])});
     $('#pk').innerHTML=[['Dərman sayı',String(D.prods.length),'var(--cy)'],['Satılan',String(gd.length),'var(--vio)'],['Heç satılmayan',String(zero.length),zero.length?'var(--am)':'var(--gr)'],['Ümumi satış',f1(S2)+' ₼','var(--gr)']].map(KPI).join('');
     const t15=gd.slice(0,15);mk('c-pt',bar(t15.map(x=>D.prods[x.k]),t15.map(x=>+x.a.toFixed(1)),pal,Math.max(260,t15.length*34+50)));
-    $('#pz').innerHTML=zero.length?zero.map(i=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.prods[i]}</span>`).join(''):'<span class="text-sm" style="color:var(--gr)">Bütün dərmanlar satılıb</span>';
-    $('#ptb').innerHTML=gd.map(x=>`<tr><td><b>${D.prods[x.k]}</b></td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${(na.get(x.k)||new Set()).size}</td><td>${(x.a/S2*100).toFixed(1)}%</td></tr>`).join('');
+    $('#pz').innerHTML=zero.length?pillsCap(zero,80):'<span class="text-sm" style="color:var(--gr)">Bütün dərmanlar satılıb</span>';
+    const DL=window.__drugAll?gd.length:150;
+    $('#ptb').innerHTML=gd.slice(0,DL).map(x=>`<tr><td><b>${D.prods[x.k]}</b></td><td>${f1(x.a)}</td><td>${f0(x.q)}</td><td>${(na.get(x.k)||new Set()).size}</td><td>${(x.a/S2*100).toFixed(1)}%</td></tr>`).join('')+(gd.length>150?`<tr><td colspan="5" style="text-align:center"><button class="tab" onclick="window.__drugAll=!window.__drugAll;render()">${window.__drugAll?'Yalnız ilk 150-ni göstər':'Hamısını göstər ('+gd.length+' dərman)'}</button></td></tr>`:'');
     const top8=gd.slice(0,8),am=new Map();R2.forEach(r=>{let o=am.get(r[1]);if(!o){o={k:r[1],a:0,p:new Map()};am.set(r[1],o)}o.a+=r[5];o.p.set(r[3],(o.p.get(r[3])||0)+r[5])});
     let mx=1;am.forEach(o=>top8.forEach(x=>{mx=Math.max(mx,o.p.get(x.k)||0)}));
     $('#pmx').innerHTML='<thead><tr><th style="cursor:default">Aptek</th>'+top8.map(x=>`<th style="cursor:default" title="${D.prods[x.k]}">${D.prods[x.k].slice(0,14)}</th>`).join('')+'<th style="cursor:default">Ən çox satılan</th><th style="cursor:default">Satılmayan</th></tr></thead><tbody>'+[...am.values()].sort((x,y)=>y.a-x.a).map(o=>{const tp=[...o.p].sort((x,y)=>y[1]-x[1])[0];return `<tr class="ck" onclick="openM(${o.k})"><td><b>${D.apts[o.k].n}</b></td>${top8.map(x=>{const v=o.p.get(x.k)||0;return `<td style="background:rgba(139,92,246,${(v/mx*.6).toFixed(2)})">${v?f0(v):'–'}</td>`}).join('')}<td style="text-align:right">${D.prods[tp[0]]}</td><td>${D.prods.length-o.p.size}</td></tr>`}).join('')+'</tbody>';
@@ -473,7 +480,7 @@ function renderM(){
     const o=base(290,'radialBar');o.series=[+Math.min(p,100).toFixed(1)];o.labels=['İcra'];o.colors=[col(p)];o.stroke={lineCap:'round'};
     o.plotOptions={radialBar:{hollow:{size:'60%'},track:{background:'#252d58'},dataLabels:{name:{color:'#8f98c9'},value:{color:'#e8ebff',fontSize:'30px',fontWeight:800,formatter:()=>p.toFixed(1)+'%'}}}};mk('c-d0',o);
     $('#m-gt').textContent='Tamamlanıb: '+p.toFixed(1)+'% ('+f1(S)+' ₼) · Qalan: '+Math.max(100-p,0).toFixed(1)+'% ('+f1(Math.max(tgt-S,0))+' ₼)';
-  }else{const gp=grp(R,3);mk('c-d1',donut(gp.map(x=>D.prods[x.k]),gp.map(x=>+x.a.toFixed(1)),290,'Cəmi ₼'))}
+  }else{const gp=grp(R,3),[l,v]=topSlices(gp,D.prods);mk('c-d1',donut(l,v,290,'Cəmi ₼'))}
   const byD=new Map();R.forEach(r=>byD.set(r[0],(byD.get(r[0])||0)+r[5]));const ds=[...byD.keys()].sort((x,y)=>x-y);
   mk('c-d2',line(ds.map(i=>D.dates[i]),ds.map(i=>+byD.get(i).toFixed(1)),290));
   const ge=grp(R,2);mk('c-d3',bar(ge.map(x=>D.emps[x.k].n),ge.map(x=>+x.a.toFixed(1)),pal,Math.max(200,ge.length*44+50)));
@@ -486,7 +493,7 @@ function renderM(){
   const d4=grp(R,3).slice(0,10);mk('c-d4',bar(d4.map(x=>D.prods[x.k]),d4.map(x=>+x.a.toFixed(1)),pal,Math.max(240,d4.length*34+50)));
   const Rn=D.rows.filter(r=>{const n=D.dn[r[0]];return n>=a&&n<=b&&r[1]===mod}),sn=new Set(Rn.map(r=>r[3])),zr=D.prods.map((_,i)=>i).filter(i=>!sn.has(i));
   const gr=D.groups.map((g,i)=>[g,R.filter(r=>(r[6]>>i)&1).reduce((s,r)=>s+r[5],0)]);
-  $('#m-z').innerHTML=(gr.length?`<h3 class="font-bold text-sm mb-1">Məhsul qrupları</h3><div class="sx"><table><tbody>${gr.map(([g,v])=>`<tr><td><b>${g}</b></td><td>${f1(v)} ₼</td><td>${S?(v/S*100).toFixed(1):'0.0'}%</td></tr>`).join('')}</tbody></table></div>`:'')+`<h3 class="font-bold text-sm mt-3 mb-1">Bu apteklə satışı olmayan dərmanlar (${zr.length})</h3><div class="flex flex-wrap gap-1.5">${zr.map(i=>`<span class="pill" style="background:var(--card2);color:var(--tx)">${D.prods[i]}</span>`).join('')||'<span class="text-sm" style="color:var(--gr)">Yoxdur</span>'}</div>`;
+  $('#m-z').innerHTML=(gr.length?`<h3 class="font-bold text-sm mb-1">Məhsul qrupları</h3><div class="sx"><table><tbody>${gr.map(([g,v])=>`<tr><td><b>${g}</b></td><td>${f1(v)} ₼</td><td>${S?(v/S*100).toFixed(1):'0.0'}%</td></tr>`).join('')}</tbody></table></div>`:'')+`<h3 class="font-bold text-sm mt-3 mb-1">Bu apteklə satışı olmayan dərmanlar (${zr.length})</h3><div class="flex flex-wrap gap-1.5">${pillsCap(zr,60)||'<span class="text-sm" style="color:var(--gr)">Yoxdur</span>'}</div>`;
   $('#m-q').innerHTML=`<h3 class="font-bold text-sm mb-1">İşçilər: dövriyyə payı, kvota və bonus</h3>${hd}<div class="sx"><table><thead><tr>${TH2}</tr></thead><tbody>${ids.map(j=>{const t=tot.get(j)||0,q=eqm.get(j),p=q&&q.q?q.s/q.q*100:null;return `<tr><td><b>${D.emps[j].n}</b></td><td>${f1(t)} ₼</td><td>${S?(t/S*100).toFixed(1):'0.0'}%</td><td>${q?f1(q.q)+' ₼':'–'}</td><td>${p!=null?`<span class="pill" style="background:${col(p)}22;color:${col(p)}">${p.toFixed(1)}%</span> <small style="color:var(--mut)">${f1(q.s)} ₼</small>`:'–'}</td><td>${q?f1(Math.max(q.q-q.s,0))+' ₼':'–'}</td><td>${bc.has(j)?f0(bc.get(j)):'–'}</td></tr>`}).join('')}</tbody></table></div>`;
 }
 function openM(i){mod=i;$('#modal').classList.remove('hidden');document.body.style.overflow='hidden';renderM()}
